@@ -1,7 +1,14 @@
 <script>
 	import { geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
 
-	let { features = [], boundaryFeatures = [], width = 900, height = 520, padding = 24 } = $props();
+	let {
+		features = [],
+		boundaryFeatures = [],
+		points = [],
+		width = 900,
+		height = 520,
+		padding = 24
+	} = $props();
 
 	const sphere = { type: 'Sphere' };
 	const graticule = geoGraticule10();
@@ -38,6 +45,23 @@
 			d: path(feature)
 		}))
 	);
+
+	const pointMarkers = $derived(
+		points
+			.map((point, index) => {
+				const projected = projection([point.longitude, point.latitude]);
+				if (!projected) {
+					return null;
+				}
+
+				return {
+					id: point.id ?? `point-${index}`,
+					x: projected[0],
+					y: projected[1]
+				};
+			})
+			.filter(Boolean)
+	);
 </script>
 
 <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
@@ -71,6 +95,9 @@
 		>
 			<title>{boundary.name}</title>
 		</path>
+	{/each}
+	{#each pointMarkers as point (point.id)}
+		<circle cx={point.x} cy={point.y} r="1.8" fill="red" fill-opacity="0.95" />
 	{/each}
 </svg>
 
