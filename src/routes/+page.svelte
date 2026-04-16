@@ -1,39 +1,50 @@
 <script>
 	import { onMount } from 'svelte';
+	import { feature } from 'topojson-client';
+	import countries10m from 'world-atlas/countries-10m.json';
 	import GeoMap from '$lib/components/GeoMap.svelte';
 
-	let features = $state([]);
-	let loading = $state(true);
+	const UKRAINE_ID = '804';
+
+	const countries = feature(countries10m, countries10m.objects.countries);
+	const ukraine = countries.features.filter((entry) => entry.id === UKRAINE_ID);
+
+	let features = $state(ukraine);
+	let boundaryFeatures = $state([]);
 	let error = $state('');
 
 	onMount(async () => {
 		try {
-			const response = await fetch('/data/sample-regions.geojson');
+			const response = await fetch('/api/ukraine-oblasts');
 			if (!response.ok) {
-				throw new Error(`Failed to load data (${response.status})`);
+				return;
 			}
 
-			const geojson = await response.json();
-			features = geojson.features ?? [];
+			const data = await response.json();
+			boundaryFeatures = data.features ?? [];
 		} catch (caughtError) {
 			error =
-				caughtError instanceof Error ? caughtError.message : 'Unknown error while loading map data';
-		} finally {
-			loading = false;
+				caughtError instanceof Error ? caughtError.message : 'Unable to load oblast boundaries';
 		}
 	});
 </script>
 
 <main>
-	<h1>Conflict Zones Map Prototype</h1>
-	<p>Minimal D3 + Svelte map setup with a GeoJSON layer.</p>
+	<h1>Ukraine</h1>
+	<p>
+		Boundary data from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener"
+			>Natural Earth</a
+		> via world-atlas.
+	</p>
 
-	{#if loading}
-		<p>Loading map data…</p>
-	{:else if error}
-		<p>{error}</p>
+	{#if features.length === 0}
+		<p>Unable to load Ukraine boundary data.</p>
 	{:else}
-		<GeoMap {features} />
+		<GeoMap {features} {boundaryFeatures} padding={10} />
+	{/if}
+
+	{#if error}
+		<p>{error}</p>
 	{/if}
 </main>
 

@@ -1,7 +1,7 @@
 <script>
 	import { geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
 
-	let { features = [], width = 900, height = 520, padding = 24 } = $props();
+	let { features = [], boundaryFeatures = [], width = 900, height = 520, padding = 24 } = $props();
 
 	const sphere = { type: 'Sphere' };
 	const graticule = geoGraticule10();
@@ -30,6 +30,14 @@
 			d: path(feature)
 		}))
 	);
+
+	const boundaryPaths = $derived(
+		boundaryFeatures.map((feature, index) => ({
+			id: feature.id ?? feature.properties?.shapeName ?? `boundary-${index}`,
+			name: feature.properties?.shapeName ?? `Boundary ${index + 1}`,
+			d: path(feature)
+		}))
+	);
 </script>
 
 <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
@@ -51,6 +59,17 @@
 			stroke-width="0.9"
 		>
 			<title>{feature.name}</title>
+		</path>
+	{/each}
+	{#each boundaryPaths as boundary (boundary.id)}
+		<path
+			d={boundary.d}
+			fill="none"
+			stroke="currentColor"
+			stroke-opacity="0.65"
+			stroke-width="0.55"
+		>
+			<title>{boundary.name}</title>
 		</path>
 	{/each}
 </svg>
