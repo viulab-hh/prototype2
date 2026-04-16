@@ -1,0 +1,41 @@
+{
+	"type": "FeatureCollection",
+	"features": [
+		{
+			"type": "Feature",
+			"properties": {
+				"name": "Region Alpha"
+			},
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [
+					[
+						[-20, 35],
+						[15, 35],
+						[15, 55],
+						[-20, 55],
+						[-20, 35]
+					]
+				]
+			}
+		},
+		{
+			"type": "Feature",
+			"properties": {
+				"name": "Region Beta"
+			},
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [
+					[
+						[30, -10],
+						[60, -10],
+						[60, 12],
+						[30, 12],
+						[30, -10]
+					]
+				]
+			}
+		}
+	]
+}
