@@ -1,5 +1,12 @@
 <script>
-	import { geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
+	import {
+		contourDensity,
+		geoGraticule10,
+		geoNaturalEarth1,
+		geoPath,
+		scaleQuantize,
+		schemeYlOrRd
+	} from 'd3';
 
 	let {
 		features = [],
@@ -29,6 +36,7 @@
 	});
 
 	const path = $derived(geoPath(projection));
+	const contourPath = geoPath();
 
 	const featurePaths = $derived(
 		features.map((feature, index) => ({
@@ -62,6 +70,36 @@
 			})
 			.filter(Boolean)
 	);
+
+	const heatContours = $derived.by(() => {
+		if (!pointMarkers.length) {
+			return [];
+		}
+
+		const densityContours = contourDensity()
+			.x((point) => point.x)
+			.y((point) => point.y)
+			.size([width, height])
+			.bandwidth(Math.max(9, Math.min(width, height) * 0.022))
+			.thresholds(32)(pointMarkers);
+
+		if (!densityContours.length) {
+			return [];
+		}
+
+		const maxDensity = densityContours[densityContours.length - 1].value || 1;
+		const heatColor = scaleQuantize(schemeYlOrRd[9]).domain([0, maxDensity]);
+
+		return densityContours.map((contour, index) => ({
+			value: contour.value,
+			id: `density-${index}`,
+			d: contourPath(contour),
+			fill: heatColor(contour.value),
+			opacity: Math.max(0.2, 0.14 + Math.pow(contour.value / maxDensity, 0.55) * 0.68),
+			strokeOpacity: 0.08 + Math.pow(contour.value / maxDensity, 0.45) * 0.24,
+			strokeWidth: 0.18 + (contour.value / maxDensity) * 0.32
+		}));
+	});
 </script>
 
 <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
@@ -96,8 +134,15 @@
 			<title>{boundary.name}</title>
 		</path>
 	{/each}
-	{#each pointMarkers as point (point.id)}
-		<circle cx={point.x} cy={point.y} r="1.8" fill="red" fill-opacity="0.95" />
+	{#each heatContours as contour (contour.id)}
+		<path
+			d={contour.d}
+			fill={contour.fill}
+			fill-opacity={contour.opacity}
+			stroke={contour.fill}
+			stroke-opacity={contour.strokeOpacity}
+			stroke-width={contour.strokeWidth}
+		/>
 	{/each}
 </svg>
 
