@@ -253,7 +253,7 @@
 		{#if showHistogram}
 			<Histogram pointMarkers={displayedPointMarkers} {width} {height} {padding} />
 		{/if}
-		{#if !showHistogram}
+		{#if !showHistogram && !showHeatMap}
 			{#each displayedPointMarkers as point (point.id)}
 				<circle cx={point.x} cy={point.y} r="1.4" fill="currentColor" fill-opacity="0.9">
 					<title>{point.label}</title>

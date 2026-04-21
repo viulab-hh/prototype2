@@ -173,13 +173,15 @@
 
 <style>
 	.animation-toggle {
-		padding: 0.4rem 0.7rem;
+		padding: 0 0.5rem;
+		height: 1.55rem;
 		border: 1px solid currentColor;
 		border-radius: 4px;
 		background: transparent;
 		color: inherit;
 		cursor: pointer;
-		font-size: 0.9rem;
+		font-size: 0.8rem;
+		line-height: 1;
 	}
 
 	.animation-toggle:hover {
@@ -202,35 +204,36 @@
 	.slider-container {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0;
 		flex: 1;
 		min-width: 150px;
 	}
 
 	.time-slider {
 		width: 100%;
-		height: 6px;
-		border-radius: 3px;
+		height: 4px;
+		border-radius: 2px;
 		background: color-mix(in srgb, currentColor 15%, transparent);
 		appearance: none;
 		outline: none;
 		-webkit-appearance: none;
 		cursor: pointer;
+		margin: 0;
 	}
 
 	.time-slider::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		appearance: none;
-		width: 16px;
-		height: 16px;
+		width: 12px;
+		height: 12px;
 		border-radius: 50%;
 		background: currentColor;
 		cursor: pointer;
 	}
 
 	.time-slider::-moz-range-thumb {
-		width: 16px;
-		height: 16px;
+		width: 12px;
+		height: 12px;
 		border-radius: 50%;
 		background: currentColor;
 		cursor: pointer;
@@ -245,7 +248,8 @@
 	.slider-labels {
 		display: flex;
 		justify-content: space-between;
-		font-size: 0.75rem;
+		font-size: 0.65rem;
+		line-height: 1;
 		opacity: 0.7;
 		width: 100%;
 	}
