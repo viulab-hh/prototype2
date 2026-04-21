@@ -85,11 +85,32 @@
 					x: projected[0],
 					y: projected[1],
 					label: point.name ?? point.location ?? `Point ${index + 1}`,
-					timestamp: point.timestamp
+					timestamp: point.timestamp,
+					originalIndex: index
 				};
 			})
 			.filter(Boolean)
 	);
+
+	const displayedPointMarkers = $derived.by(() => {
+		if (!showAnimation || !uniqueDays.length) {
+			return pointMarkers;
+		}
+
+		const currentGroup = uniqueDays[currentDayIndex];
+		if (!currentGroup) return pointMarkers;
+
+		const startMs = currentGroup.start.getTime();
+		const endMs = currentGroup.end.getTime() + 86400000;
+
+		return pointMarkers.filter((marker) => {
+			if (!marker.timestamp) return false;
+			const timestamp =
+				typeof marker.timestamp === 'string' ? parseInt(marker.timestamp, 10) : marker.timestamp;
+			const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+			return ms >= startMs && ms <= endMs;
+		});
+	});
 
 	const northArrow = $derived.by(() => {
 		const size = Math.max(34, Math.min(48, width * 0.052));
@@ -281,7 +302,7 @@
 				<title>{boundary.name}</title>
 			</path>
 		{/each}
-		{#each pointMarkers as point (point.id)}
+		{#each displayedPointMarkers as point (point.id)}
 			<circle cx={point.x} cy={point.y} r="1.4" fill="currentColor" fill-opacity="0.9">
 				<title>{point.label}</title>
 			</circle>
