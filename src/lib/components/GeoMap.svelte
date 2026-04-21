@@ -2,6 +2,7 @@
 	import { geoDistance, geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
 	import HeatMap from './HeatMap.svelte';
 	import Animation from './Animation.svelte';
+	import Histogram from './Histogram.svelte';
 
 	let {
 		features = [],
@@ -13,6 +14,7 @@
 	} = $props();
 
 	let showHeatMap = $state(false);
+	let showHistogram = $state(false);
 	let showAnimation = $state(false);
 	let currentDayIndex = $state(0);
 	let animationRunning = $state(false);
@@ -177,9 +179,35 @@
 			role="switch"
 			aria-checked={showHeatMap}
 			aria-label="Toggle heat map"
-			onclick={() => (showHeatMap = !showHeatMap)}
+			onclick={() => {
+				showHeatMap = !showHeatMap;
+				if (showHeatMap) {
+					showHistogram = false;
+				} else {
+					showAnimation = false;
+				}
+			}}
 		>
 			<span class="heat-toggle__label">Heat map</span>
+			<span class="heat-toggle__track" aria-hidden="true">
+				<span class="heat-toggle__thumb"></span>
+			</span>
+		</button>
+		<button
+			class="heat-toggle"
+			type="button"
+			role="switch"
+			aria-checked={showHistogram}
+			aria-label="Toggle histogram"
+			onclick={() => {
+				showHistogram = !showHistogram;
+				if (showHistogram) {
+					showHeatMap = false;
+					showAnimation = false;
+				}
+			}}
+		>
+			<span class="heat-toggle__label">Histogram</span>
 			<span class="heat-toggle__track" aria-hidden="true">
 				<span class="heat-toggle__thumb"></span>
 			</span>
@@ -221,11 +249,16 @@
 				<title>{boundary.name}</title>
 			</path>
 		{/each}
-		{#each displayedPointMarkers as point (point.id)}
-			<circle cx={point.x} cy={point.y} r="1.4" fill="currentColor" fill-opacity="0.9">
-				<title>{point.label}</title>
-			</circle>
-		{/each}
+		{#if showHistogram}
+			<Histogram pointMarkers={displayedPointMarkers} {width} {height} {padding} />
+		{/if}
+		{#if !showHistogram}
+			{#each displayedPointMarkers as point (point.id)}
+				<circle cx={point.x} cy={point.y} r="1.4" fill="currentColor" fill-opacity="0.9">
+					<title>{point.label}</title>
+				</circle>
+			{/each}
+		{/if}
 		{#if showHeatMap}
 			<HeatMap
 				{pointMarkers}
