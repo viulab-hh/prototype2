@@ -2,16 +2,7 @@
 	import { contourDensity, geoPath, scaleQuantize, schemeYlOrRd } from 'd3';
 	import MapLegend from './MapLegend.svelte';
 
-	let {
-		pointMarkers = [],
-		width = 900,
-		height = 520,
-		padding = 24,
-		points = [],
-		showAnimation = false,
-		currentDayIndex = 0,
-		uniqueDays = []
-	} = $props();
+	let { pointMarkers = [], width = 900, height = 520, padding = 24 } = $props();
 
 	const contourPath = geoPath();
 	const legendTitle = 'Density bands';
@@ -42,41 +33,7 @@
 		}));
 	};
 
-	const buildIndexLookup = (startDay, endDay) => {
-		const lookup = Object.create(null);
-
-		for (let day = startDay; day <= endDay; day++) {
-			if (pointTimestampMap[day]) {
-				pointTimestampMap[day].forEach((i) => {
-					lookup[i] = true;
-				});
-			}
-		}
-
-		return lookup;
-	};
-
-	const contourCache = $derived.by(() => {
-		if (!showAnimation || !uniqueDays.length) {
-			return null;
-		}
-		const cache = [];
-		uniqueDays.forEach((group) => {
-			const startMs = group.start.getTime();
-			const endMs = group.end.getTime() + 86400000;
-			const startDay = Math.floor(startMs / 86400000);
-			const endDay = Math.floor(endMs / 86400000);
-			const indicesLookup = buildIndexLookup(startDay, endDay);
-			const filtered = pointMarkers.filter((_, i) => indicesLookup[i]);
-			cache.push(computeContours(filtered));
-		});
-		return cache;
-	});
-
-	const heatContours = $derived.by(() => {
-		if (!contourCache) return computeContours(showAnimation ? filteredPointMarkers : pointMarkers);
-		return contourCache[currentDayIndex] || [];
-	});
+	const heatContours = $derived(computeContours(pointMarkers));
 
 	const legendBands = $derived.by(() => {
 		if (!heatContours.length) {
@@ -118,37 +75,6 @@
 			color: band.color,
 			label: `${formatDensity(band.from)} - ${formatDensity(band.to)}`
 		}));
-	});
-
-	const pointTimestampMap = $derived.by(() => {
-		const map = {};
-		points.forEach((p, i) => {
-			if (p.timestamp) {
-				const timestamp = typeof p.timestamp === 'string' ? parseInt(p.timestamp, 10) : p.timestamp;
-				const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
-				const day = Math.floor(ms / 86400000);
-				if (!map[day]) map[day] = [];
-				map[day].push(i);
-			}
-		});
-		return map;
-	});
-
-	const filteredPointMarkers = $derived.by(() => {
-		if (!showAnimation || uniqueDays.length === 0) {
-			return pointMarkers;
-		}
-
-		const currentGroup = uniqueDays[currentDayIndex];
-		if (!currentGroup) return pointMarkers;
-
-		const startMs = currentGroup.start.getTime();
-		const endMs = currentGroup.end.getTime() + 86400000;
-		const startDay = Math.floor(startMs / 86400000);
-		const endDay = Math.floor(endMs / 86400000);
-		const indicesLookup = buildIndexLookup(startDay, endDay);
-
-		return pointMarkers.filter((_, i) => indicesLookup[i]);
 	});
 </script>
 

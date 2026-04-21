@@ -183,7 +183,7 @@
 				showHeatMap = !showHeatMap;
 				if (showHeatMap) {
 					showHistogram = false;
-				} else {
+				} else if (!showHistogram) {
 					showAnimation = false;
 				}
 			}}
@@ -203,6 +203,7 @@
 				showHistogram = !showHistogram;
 				if (showHistogram) {
 					showHeatMap = false;
+				} else if (!showHeatMap) {
 					showAnimation = false;
 				}
 			}}
@@ -212,7 +213,7 @@
 				<span class="heat-toggle__thumb"></span>
 			</span>
 		</button>
-		{#if showHeatMap}
+		{#if showHeatMap || showHistogram}
 			<Animation bind:showAnimation bind:currentDayIndex bind:animationRunning bind:uniqueDays />
 		{/if}
 	</div>
@@ -260,16 +261,7 @@
 			{/each}
 		{/if}
 		{#if showHeatMap}
-			<HeatMap
-				{pointMarkers}
-				{width}
-				{height}
-				{padding}
-				{points}
-				{showAnimation}
-				{currentDayIndex}
-				{uniqueDays}
-			/>
+			<HeatMap pointMarkers={displayedPointMarkers} {width} {height} {padding} />
 		{/if}
 		{#if scaleBar}
 			<g transform={`translate(${scaleBar.x}, ${scaleBar.y})`}>
