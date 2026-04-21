@@ -1,6 +1,7 @@
 <script>
 	import {
 		contourDensity,
+		geoDistance,
 		geoGraticule10,
 		geoNaturalEarth1,
 		geoPath,
@@ -37,6 +38,7 @@
 
 	const path = $derived(geoPath(projection));
 	const contourPath = geoPath();
+	const earthRadiusKm = 6371;
 	const legendItemHeight = 14;
 	const legendItemGap = 3;
 
@@ -125,6 +127,54 @@
 		});
 	});
 
+	const northArrow = $derived.by(() => {
+		const size = Math.max(34, Math.min(48, width * 0.052));
+
+		return {
+			size,
+			x: width - padding - size * 0.72,
+			y: padding + size * 0.95
+		};
+	});
+
+	const scaleBar = $derived.by(() => {
+		const targetWidth = Math.max(72, Math.min(140, width * 0.18));
+		const sampleY = Math.min(height - padding - 24, height * 0.72);
+		const sampleEndX = width - padding - 18;
+		const sampleStartX = sampleEndX - targetWidth;
+		const startCoords = projection.invert([sampleStartX, sampleY]);
+		const endCoords = projection.invert([sampleEndX, sampleY]);
+
+		if (!startCoords || !endCoords) {
+			return null;
+		}
+
+		const sampledDistanceKm = geoDistance(startCoords, endCoords) * earthRadiusKm;
+
+		if (!Number.isFinite(sampledDistanceKm) || sampledDistanceKm <= 0) {
+			return null;
+		}
+
+		const magnitude = 10 ** Math.floor(Math.log10(sampledDistanceKm));
+		const normalizedDistance = sampledDistanceKm / magnitude;
+		const roundedDistance =
+			(normalizedDistance >= 7.5 && 10) ||
+			(normalizedDistance >= 3.5 && 5) ||
+			(normalizedDistance >= 1.5 && 2) ||
+			1;
+		const distanceKm = roundedDistance * magnitude;
+		const widthPerKm = targetWidth / sampledDistanceKm;
+		const barWidth = distanceKm * widthPerKm;
+
+		return {
+			distanceKm,
+			x: width - padding - barWidth - 18,
+			y: height - padding - 22,
+			width: barWidth,
+			height: 8
+		};
+	});
+
 	const formatDensity = (value) => {
 		if (value >= 100) {
 			return value.toFixed(0);
@@ -135,6 +185,14 @@
 		}
 
 		return value.toFixed(2);
+	};
+
+	const formatDistance = (value) => {
+		if (value >= 1000) {
+			return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k km`;
+		}
+
+		return `${value.toFixed(0)} km`;
 	};
 </script>
 
@@ -210,6 +268,66 @@
 					</text>
 				</g>
 			{/each}
+		</g>
+	{/if}
+	{#if scaleBar}
+		<g transform={`translate(${scaleBar.x}, ${scaleBar.y})`}>
+			<rect
+				width={scaleBar.width / 2}
+				height={scaleBar.height}
+				fill="currentColor"
+				fill-opacity="0.88"
+			/>
+			<rect
+				x={scaleBar.width / 2}
+				width={scaleBar.width / 2}
+				height={scaleBar.height}
+				fill="white"
+				stroke="currentColor"
+				stroke-opacity="0.7"
+				stroke-width="0.8"
+			/>
+			<line x1="0" y1="0" x2="0" y2="12" stroke="currentColor" stroke-width="0.9" />
+			<line
+				x1={scaleBar.width / 2}
+				y1="0"
+				x2={scaleBar.width / 2}
+				y2="12"
+				stroke="currentColor"
+				stroke-width="0.9"
+			/>
+			<line
+				x1={scaleBar.width}
+				y1="0"
+				x2={scaleBar.width}
+				y2="12"
+				stroke="currentColor"
+				stroke-width="0.9"
+			/>
+			<text x="0" y="21" fill="currentColor" font-size="10">0</text>
+			<text x={scaleBar.width / 2} y="21" fill="currentColor" font-size="10" text-anchor="middle">
+				{formatDistance(scaleBar.distanceKm / 2)}
+			</text>
+			<text x={scaleBar.width} y="21" fill="currentColor" font-size="10" text-anchor="end">
+				{formatDistance(scaleBar.distanceKm)}
+			</text>
+		</g>
+	{/if}
+	{#if northArrow}
+		<g transform={`translate(${northArrow.x}, ${northArrow.y})`}>
+			<line
+				x1="0"
+				y1={northArrow.size * 0.32}
+				x2="0"
+				y2={-northArrow.size * 0.18}
+				stroke="currentColor"
+				stroke-width="1.2"
+			/>
+			<path
+				d={`M 0 ${-northArrow.size * 0.54} L ${northArrow.size * 0.16} ${-northArrow.size * 0.16} L 0 ${-northArrow.size * 0.25} L ${-northArrow.size * 0.16} ${-northArrow.size * 0.16} Z`}
+				fill="currentColor"
+				fill-opacity="0.92"
+			/>
 		</g>
 	{/if}
 </svg>
