@@ -1,5 +1,6 @@
 <script>
-	import { scaleQuantize, schemeYlOrRd } from 'd3';
+	import { schemeYlOrRd } from 'd3';
+	import MapLegend from './MapLegend.svelte';
 
 	let { pointMarkers = [], width = 900, height = 520, padding = 24 } = $props();
 
@@ -180,25 +181,17 @@
 	});
 
 	const legendTitle = 'Events per hex';
-	const legendViewBands = $derived.by(() => {
+	const legendItems = $derived.by(() => {
 		if (!histogramData.cells.length) {
 			return [];
 		}
 
 		return legendBands.map((band, index) => ({
-			...band,
-			color: getBandColor(index)
+			id: band.id,
+			color: getBandColor(index),
+			label: formatBand(band.from, band.to, band.openEnded)
 		}));
 	});
-
-	const legendWidth = 124;
-	const legendPaddingX = 10;
-	const legendPaddingY = 10;
-	const legendRowHeight = 12;
-	const legendGap = 2;
-	const legendHeight = $derived(
-		legendPaddingY * 2 + 12 + 8 + legendViewBands.length * (legendRowHeight + legendGap)
-	);
 
 	const formatBand = (from, to, openEnded) => {
 		if (openEnded) {
@@ -220,44 +213,4 @@
 		<title>{cell.count} events</title>
 	</path>
 {/each}
-
-{#if legendViewBands.length}
-	<g transform={`translate(${padding}, ${height - padding - legendHeight})`}>
-		<rect
-			width={legendWidth}
-			height={legendHeight}
-			rx="8"
-			fill="white"
-			fill-opacity="0.86"
-			stroke="currentColor"
-			stroke-opacity="0.45"
-			stroke-width="0.7"
-		/>
-		<text
-			x={legendPaddingX}
-			y={legendPaddingY + 10}
-			fill="currentColor"
-			font-size="11"
-			font-weight="600"
-		>
-			{legendTitle}
-		</text>
-		{#each legendViewBands as band, index (band.id)}
-			<g
-				transform={`translate(${legendPaddingX}, ${legendPaddingY + 20 + index * (legendRowHeight + legendGap)})`}
-			>
-				<rect
-					width="18"
-					height={legendRowHeight}
-					fill={band.color}
-					stroke="currentColor"
-					stroke-opacity="0.18"
-					stroke-width="0.4"
-				/>
-				<text x="24" y="9" fill="currentColor" font-size="9.5" dominant-baseline="middle">
-					{formatBand(band.from, band.to, band.openEnded)}
-				</text>
-			</g>
-		{/each}
-	</g>
-{/if}
+<MapLegend title={legendTitle} items={legendItems} {width} {height} {padding} />
