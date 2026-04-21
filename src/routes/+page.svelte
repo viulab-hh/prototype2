@@ -72,18 +72,17 @@
 </script>
 
 <main>
-	<h1>Ukraine</h1>
-	<p>
-		Boundary data from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener"
-			>Natural Earth</a
-		> via world-atlas.
-	</p>
+	<h1>Kampfhandlungen und Truppenbewegungen in der Ukraine</h1>
 
 	{#if features.length === 0}
 		<p>Unable to load Ukraine boundary data.</p>
 	{:else}
 		<GeoMap {features} {boundaryFeatures} points={pointFeatures} padding={10} />
-		<p>{pointFeatures.length} points shown inside Ukraine.</p>
+		<p>
+			Boundary data from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener"
+				>Natural Earth</a
+			> via world-atlas.
+		</p>
 	{/if}
 
 	{#if error}
