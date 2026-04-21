@@ -4,8 +4,18 @@
 	let { pointMarkers = [], width = 900, height = 520, padding = 24 } = $props();
 
 	const contourPath = geoPath();
+	const legendTitle = 'Density bands';
+	const legendPaddingX = 10;
+	const legendPaddingY = 10;
+	const legendSwatchWidth = 20;
+	const legendLabelOffset = 28;
+	const legendTitleLineHeight = 11;
+	const legendTitleGap = 8;
 	const legendItemHeight = 14;
 	const legendItemGap = 3;
+	const legendTitleCharWidth = 5.2;
+	const legendLabelCharWidth = 4.9;
+	const legendRightTrim = 3;
 
 	const heatContours = $derived.by(() => {
 		if (!pointMarkers.length) {
@@ -70,6 +80,34 @@
 
 		return value.toFixed(2);
 	};
+
+	const legendWidth = $derived.by(() => {
+		if (!legendBands.length) {
+			return 0;
+		}
+
+		const longestBandLabel = legendBands.reduce((maxLength, band) => {
+			const label = `${formatDensity(band.from)} - ${formatDensity(band.to)}`;
+			return Math.max(maxLength, label.length);
+		}, 0);
+		const titleWidth = legendTitle.length * legendTitleCharWidth;
+		const labelWidth = legendLabelOffset + longestBandLabel * legendLabelCharWidth;
+
+		return Math.max(titleWidth, labelWidth) + legendPaddingX * 2 - legendRightTrim;
+	});
+
+	const legendHeight = $derived.by(() => {
+		if (!legendBands.length) {
+			return 0;
+		}
+
+		const bandRowsHeight =
+			legendBands.length * legendItemHeight + Math.max(0, legendBands.length - 1) * legendItemGap;
+
+		return legendPaddingY * 2 + legendTitleLineHeight + legendTitleGap + bandRowsHeight;
+	});
+
+	const legendBandStartY = $derived(legendPaddingY + legendTitleLineHeight + legendTitleGap);
 </script>
 
 {#each heatContours as contour (contour.id)}
@@ -83,12 +121,10 @@
 	/>
 {/each}
 {#if legendBands.length}
-	<g
-		transform={`translate(${padding}, ${height - padding - (38 + legendBands.length * (legendItemHeight + legendItemGap))})`}
-	>
+	<g transform={`translate(${padding}, ${height - padding - legendHeight})`}>
 		<rect
-			width="158"
-			height={38 + legendBands.length * (legendItemHeight + legendItemGap)}
+			width={legendWidth}
+			height={legendHeight}
 			rx="8"
 			fill="white"
 			fill-opacity="0.86"
@@ -96,18 +132,34 @@
 			stroke-opacity="0.45"
 			stroke-width="0.7"
 		/>
-		<text x="10" y="16" fill="currentColor" font-size="11" font-weight="600">Density bands</text>
+		<text
+			x={legendPaddingX}
+			y={legendPaddingY + legendTitleLineHeight}
+			fill="currentColor"
+			font-size="11"
+			font-weight="600"
+		>
+			{legendTitle}
+		</text>
 		{#each legendBands as band, index (band.id)}
-			<g transform={`translate(10, ${24 + index * (legendItemHeight + legendItemGap)})`}>
+			<g
+				transform={`translate(${legendPaddingX}, ${legendBandStartY + index * (legendItemHeight + legendItemGap)})`}
+			>
 				<rect
-					width="20"
+					width={legendSwatchWidth}
 					height={legendItemHeight}
 					fill={band.color}
 					stroke="currentColor"
 					stroke-opacity="0.2"
 					stroke-width="0.5"
 				/>
-				<text x="28" y="10.5" fill="currentColor" font-size="10" dominant-baseline="middle">
+				<text
+					x={legendLabelOffset}
+					y="10.5"
+					fill="currentColor"
+					font-size="10"
+					dominant-baseline="middle"
+				>
 					{formatDensity(band.from)} - {formatDensity(band.to)}
 				</text>
 			</g>
