@@ -52,6 +52,20 @@
 		}));
 	};
 
+	const buildIndexLookup = (startDay, endDay) => {
+		const lookup = Object.create(null);
+
+		for (let day = startDay; day <= endDay; day++) {
+			if (pointTimestampMap[day]) {
+				pointTimestampMap[day].forEach((i) => {
+					lookup[i] = true;
+				});
+			}
+		}
+
+		return lookup;
+	};
+
 	const contourCache = $derived.by(() => {
 		if (!showAnimation || !uniqueDays.length) {
 			return null;
@@ -62,13 +76,8 @@
 			const endMs = group.end.getTime() + 86400000;
 			const startDay = Math.floor(startMs / 86400000);
 			const endDay = Math.floor(endMs / 86400000);
-			const indices = new Set();
-			for (let day = startDay; day <= endDay; day++) {
-				if (pointTimestampMap[day]) {
-					pointTimestampMap[day].forEach((i) => indices.add(i));
-				}
-			}
-			const filtered = pointMarkers.filter((_, i) => indices.has(i));
+			const indicesLookup = buildIndexLookup(startDay, endDay);
+			const filtered = pointMarkers.filter((_, i) => indicesLookup[i]);
 			cache.push(computeContours(filtered));
 		});
 		return cache;
@@ -167,15 +176,9 @@
 		const endMs = currentGroup.end.getTime() + 86400000;
 		const startDay = Math.floor(startMs / 86400000);
 		const endDay = Math.floor(endMs / 86400000);
+		const indicesLookup = buildIndexLookup(startDay, endDay);
 
-		const indices = new Set();
-		for (let day = startDay; day <= endDay; day++) {
-			if (pointTimestampMap[day]) {
-				pointTimestampMap[day].forEach((i) => indices.add(i));
-			}
-		}
-
-		return pointMarkers.filter((_, i) => indices.has(i));
+		return pointMarkers.filter((_, i) => indicesLookup[i]);
 	});
 </script>
 
