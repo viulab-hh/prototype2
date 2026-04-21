@@ -1,12 +1,31 @@
 <script>
+	import { onMount } from 'svelte';
+
 	let {
 		showAnimation = $bindable(false),
 		currentDayIndex = $bindable(0),
-		animationRunning = false,
-		uniqueDays = [],
-		onStartAnimation = () => {},
-		onPauseAnimation = () => {}
+		animationRunning = $bindable(false),
+		uniqueDays = $bindable([])
 	} = $props();
+
+	let animationInterval = $state(null);
+	let lastShowAnimation = $state(showAnimation);
+
+	const dateGroups = [
+		{ label: 'Jan 1 - Feb 23', start: new Date('2022-01-01'), end: new Date('2022-02-23') },
+		{ label: 'Feb 24 - Mar 14', start: new Date('2022-02-24'), end: new Date('2022-03-14') },
+		{ label: 'Mar 15 - Apr 1', start: new Date('2022-03-15'), end: new Date('2022-04-01') },
+		{ label: 'Apr 2 - Apr 14', start: new Date('2022-04-02'), end: new Date('2022-04-14') },
+		{ label: 'Apr 15 - Apr 30', start: new Date('2022-04-15'), end: new Date('2022-04-30') },
+		{ label: 'May 1 - Jun 3', start: new Date('2022-05-01'), end: new Date('2022-06-03') }
+	];
+
+	const allUniqueDays = dateGroups.map((g, i) => ({
+		id: i,
+		label: g.label,
+		start: g.start,
+		end: g.end
+	}));
 
 	const germanDateFormatter = new Intl.DateTimeFormat('de-DE', {
 		day: 'numeric',
@@ -35,11 +54,53 @@
 		return germanShortDateFormatter.format(date);
 	};
 
+	$effect(() => {
+		if (showAnimation === lastShowAnimation) {
+			return;
+		}
+
+		lastShowAnimation = showAnimation;
+
+		if (!showAnimation) {
+			pauseAnimation();
+			uniqueDays = [];
+			return;
+		}
+
+		uniqueDays = allUniqueDays;
+
+		if (currentDayIndex >= uniqueDays.length) {
+			currentDayIndex = 0;
+		}
+	});
+
+	function startAnimation() {
+		if (!showAnimation || !uniqueDays.length) return;
+
+		if (animationInterval !== null) {
+			clearInterval(animationInterval);
+		}
+
+		animationRunning = true;
+
+		const interval = setInterval(() => {
+			currentDayIndex = (currentDayIndex + 1) % uniqueDays.length;
+		}, 1000);
+
+		animationInterval = interval;
+	}
+
+	function pauseAnimation() {
+		if (animationInterval !== null) {
+			clearInterval(animationInterval);
+			animationInterval = null;
+		}
+		animationRunning = false;
+	}
+
 	function toggleAnimation() {
 		if (showAnimation) {
-			if (animationRunning) {
-				onPauseAnimation();
-			}
+			pauseAnimation();
 			showAnimation = false;
 			return;
 		}
@@ -47,6 +108,15 @@
 		showAnimation = true;
 		currentDayIndex = 0;
 	}
+
+	onMount(() => {
+		return () => {
+			if (animationInterval !== null) {
+				clearInterval(animationInterval);
+			}
+			animationRunning = false;
+		};
+	});
 </script>
 
 <button
@@ -78,7 +148,7 @@
 		</div>
 		<button
 			type="button"
-			onclick={animationRunning ? onPauseAnimation : onStartAnimation}
+			onclick={animationRunning ? pauseAnimation : startAnimation}
 			class="animation-button"
 			title={animationRunning ? 'Pause' : 'Play'}
 		>
@@ -142,6 +212,7 @@
 		height: 6px;
 		border-radius: 3px;
 		background: color-mix(in srgb, currentColor 15%, transparent);
+		appearance: none;
 		outline: none;
 		-webkit-appearance: none;
 		cursor: pointer;

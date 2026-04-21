@@ -1,6 +1,5 @@
 <script>
 	import { geoDistance, geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
-	import { onMount } from 'svelte';
 	import HeatMap from './HeatMap.svelte';
 	import Animation from './Animation.svelte';
 
@@ -17,7 +16,7 @@
 	let showAnimation = $state(false);
 	let currentDayIndex = $state(0);
 	let animationRunning = $state(false);
-	let animationInterval = $state(null);
+	let uniqueDays = $state([]);
 
 	const sphere = { type: 'Sphere' };
 	const graticule = geoGraticule10();
@@ -168,59 +167,6 @@
 
 		return `${value.toFixed(0)} km`;
 	};
-
-	let uniqueDays = $state([]);
-	const dateGroups = [
-		{ label: 'Jan 1 - Feb 23', start: new Date('2022-01-01'), end: new Date('2022-02-23') },
-		{ label: 'Feb 24 - Mar 14', start: new Date('2022-02-24'), end: new Date('2022-03-14') },
-		{ label: 'Mar 15 - Apr 1', start: new Date('2022-03-15'), end: new Date('2022-04-01') },
-		{ label: 'Apr 2 - Apr 14', start: new Date('2022-04-02'), end: new Date('2022-04-14') },
-		{ label: 'Apr 15 - Apr 30', start: new Date('2022-04-15'), end: new Date('2022-04-30') },
-		{ label: 'May 1 - Jun 3', start: new Date('2022-05-01'), end: new Date('2022-06-03') }
-	];
-
-	$effect(() => {
-		if (!showAnimation) return;
-		uniqueDays = dateGroups.map((g, i) => ({
-			id: i,
-			label: g.label,
-			start: g.start,
-			end: g.end
-		}));
-	});
-
-	function startAnimation() {
-		if (!showAnimation || !uniqueDays.length) return;
-
-		if (animationInterval !== null) {
-			clearInterval(animationInterval);
-		}
-
-		animationRunning = true;
-
-		const interval = setInterval(() => {
-			currentDayIndex = (currentDayIndex + 1) % uniqueDays.length;
-		}, 2000);
-
-		animationInterval = interval;
-	}
-
-	function pauseAnimation() {
-		if (animationInterval !== null) {
-			clearInterval(animationInterval);
-			animationInterval = null;
-		}
-		animationRunning = false;
-	}
-
-	onMount(() => {
-		return () => {
-			if (animationInterval !== null) {
-				clearInterval(animationInterval);
-			}
-			animationRunning = false;
-		};
-	});
 </script>
 
 <div class="map-wrap">
@@ -239,14 +185,7 @@
 			</span>
 		</button>
 		{#if showHeatMap}
-			<Animation
-				bind:showAnimation
-				bind:currentDayIndex
-				{animationRunning}
-				{uniqueDays}
-				onStartAnimation={startAnimation}
-				onPauseAnimation={pauseAnimation}
-			/>
+			<Animation bind:showAnimation bind:currentDayIndex bind:animationRunning bind:uniqueDays />
 		{/if}
 	</div>
 
