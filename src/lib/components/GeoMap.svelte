@@ -1,5 +1,6 @@
 <script>
 	import { geoDistance, geoGraticule10, geoNaturalEarth1, geoPath } from 'd3';
+	import { onMount } from 'svelte';
 	import HeatMap from './HeatMap.svelte';
 
 	let {
@@ -12,6 +13,10 @@
 	} = $props();
 
 	let showHeatMap = $state(false);
+	let showAnimation = $state(false);
+	let currentDayIndex = $state(0);
+	let animationRunning = $state(false);
+	let animationInterval = $state(null);
 
 	const sphere = { type: 'Sphere' };
 	const graticule = geoGraticule10();
@@ -79,7 +84,8 @@
 					id: point.id ?? `point-${index}`,
 					x: projected[0],
 					y: projected[1],
-					label: point.name ?? point.location ?? `Point ${index + 1}`
+					label: point.name ?? point.location ?? `Point ${index + 1}`,
+					timestamp: point.timestamp
 				};
 			})
 			.filter(Boolean)
@@ -140,22 +146,108 @@
 
 		return `${value.toFixed(0)} km`;
 	};
+
+	let uniqueDays = $state([]);
+	const dateGroups = [
+		{ label: 'Jan 1 - Feb 23', start: new Date('2022-01-01'), end: new Date('2022-02-23') },
+		{ label: 'Feb 24 - Mar 14', start: new Date('2022-02-24'), end: new Date('2022-03-14') },
+		{ label: 'Mar 15 - Apr 1', start: new Date('2022-03-15'), end: new Date('2022-04-01') },
+		{ label: 'Apr 2 - Apr 14', start: new Date('2022-04-02'), end: new Date('2022-04-14') },
+		{ label: 'Apr 15 - Apr 30', start: new Date('2022-04-15'), end: new Date('2022-04-30') },
+		{ label: 'May 1 - Jun 3', start: new Date('2022-05-01'), end: new Date('2022-06-03') }
+	];
+
+	$effect(() => {
+		if (!showAnimation) return;
+		uniqueDays = dateGroups.map((g, i) => ({
+			id: i,
+			label: g.label,
+			start: g.start,
+			end: g.end
+		}));
+	});
+
+	function startAnimation() {
+		if (animationRunning || !showAnimation || !uniqueDays.length) return;
+
+		if (animationInterval !== null) {
+			clearInterval(animationInterval);
+		}
+
+		animationRunning = true;
+		currentDayIndex = 0;
+
+		const interval = setInterval(() => {
+			currentDayIndex += 1;
+
+			if (currentDayIndex >= uniqueDays.length) {
+				clearInterval(interval);
+				animationRunning = false;
+				showAnimation = false;
+				animationInterval = null;
+			}
+		}, 2000);
+
+		animationInterval = interval;
+	}
+
+	onMount(() => {
+		return () => {
+			if (animationInterval !== null) {
+				clearInterval(animationInterval);
+			}
+			animationRunning = false;
+		};
+	});
 </script>
 
 <div class="map-wrap">
-	<button
-		class="heat-toggle"
-		type="button"
-		role="switch"
-		aria-checked={showHeatMap}
-		aria-label="Toggle heat map"
-		onclick={() => (showHeatMap = !showHeatMap)}
-	>
-		<span class="heat-toggle__label">Heat map</span>
-		<span class="heat-toggle__track" aria-hidden="true">
-			<span class="heat-toggle__thumb"></span>
-		</span>
-	</button>
+	<div class="map-controls">
+		<button
+			class="heat-toggle"
+			type="button"
+			role="switch"
+			aria-checked={showHeatMap}
+			aria-label="Toggle heat map"
+			onclick={() => (showHeatMap = !showHeatMap)}
+		>
+			<span class="heat-toggle__label">Heat map</span>
+			<span class="heat-toggle__track" aria-hidden="true">
+				<span class="heat-toggle__thumb"></span>
+			</span>
+		</button>
+		{#if showHeatMap}
+			<button
+				type="button"
+				onclick={() => {
+					showAnimation = !showAnimation;
+					if (showAnimation && !animationRunning) {
+						currentDayIndex = 0;
+					}
+				}}
+				class="animation-toggle"
+				aria-pressed={showAnimation}
+			>
+				{showAnimation ? 'Stop animation' : 'Animate by day'}
+			</button>
+			{#if showAnimation && uniqueDays.length > 0}
+				<button
+					type="button"
+					onclick={startAnimation}
+					disabled={animationRunning}
+					class="animation-play"
+				>
+					{animationRunning ? 'Playing...' : 'Play'}
+				</button>
+				<span class="animation-info">
+					Period {currentDayIndex + 1} of {uniqueDays.length}
+					{#if uniqueDays[currentDayIndex]}
+						({uniqueDays[currentDayIndex].label})
+					{/if}
+				</span>
+			{/if}
+		{/if}
+	</div>
 
 	<svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
 		<path d={path(sphere)} fill="currentColor" fill-opacity="0.06" />
@@ -195,7 +287,16 @@
 			</circle>
 		{/each}
 		{#if showHeatMap}
-			<HeatMap {pointMarkers} {width} {height} {padding} />
+			<HeatMap
+				{pointMarkers}
+				{width}
+				{height}
+				{padding}
+				{points}
+				{showAnimation}
+				{currentDayIndex}
+				{uniqueDays}
+			/>
 		{/if}
 		{#if scaleBar}
 			<g transform={`translate(${scaleBar.x}, ${scaleBar.y})`}>
@@ -317,6 +418,52 @@
 	.heat-toggle:focus-visible .heat-toggle__track {
 		outline: 2px solid currentColor;
 		outline-offset: 2px;
+	}
+
+	.map-controls {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	.animation-toggle {
+		padding: 0.4rem 0.7rem;
+		border: 1px solid currentColor;
+		border-radius: 4px;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		font-size: 0.9rem;
+	}
+
+	.animation-toggle:hover {
+		background: color-mix(in srgb, currentColor 8%, transparent);
+	}
+
+	.animation-play {
+		padding: 0.4rem 0.7rem;
+		border: 1px solid currentColor;
+		border-radius: 4px;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		font-size: 0.9rem;
+	}
+
+	.animation-play:hover:not(:disabled) {
+		background: color-mix(in srgb, currentColor 8%, transparent);
+	}
+
+	.animation-play:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.animation-info {
+		font-size: 0.85rem;
+		color: inherit;
+		opacity: 0.8;
 	}
 
 	svg {

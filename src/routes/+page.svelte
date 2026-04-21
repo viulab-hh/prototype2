@@ -29,7 +29,8 @@
 				return {
 					id: `${row.id ?? 'point'}-${index}`,
 					longitude,
-					latitude
+					latitude,
+					timestamp: row.timestamp
 				};
 			})
 			.filter(Boolean);

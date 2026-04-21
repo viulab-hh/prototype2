@@ -1,7 +1,16 @@
 <script>
 	import { contourDensity, geoPath, scaleQuantize, schemeYlOrRd } from 'd3';
 
-	let { pointMarkers = [], width = 900, height = 520, padding = 24 } = $props();
+	let {
+		pointMarkers = [],
+		width = 900,
+		height = 520,
+		padding = 24,
+		points = [],
+		showAnimation = false,
+		currentDayIndex = 0,
+		uniqueDays = []
+	} = $props();
 
 	const contourPath = geoPath();
 	const legendTitle = 'Density bands';
@@ -17,21 +26,17 @@
 	const legendLabelCharWidth = 4.9;
 	const legendRightTrim = 3;
 
-	const heatContours = $derived.by(() => {
-		if (!pointMarkers.length) {
-			return [];
-		}
+	const computeContours = (dataPoints) => {
+		if (!dataPoints.length) return [];
 
 		const densityContours = contourDensity()
 			.x((point) => point.x)
 			.y((point) => point.y)
 			.size([width, height])
-			.bandwidth(Math.max(9, Math.min(width, height) * 0.022))
-			.thresholds(32)(pointMarkers);
+			.bandwidth(Math.max(30, Math.min(width, height) * 0.05))
+			.thresholds(8)(dataPoints);
 
-		if (!densityContours.length) {
-			return [];
-		}
+		if (!densityContours.length) return [];
 
 		const maxDensity = densityContours[densityContours.length - 1].value || 1;
 		const heatColor = scaleQuantize(schemeYlOrRd[9]).domain([0, maxDensity]);
@@ -45,6 +50,33 @@
 			strokeOpacity: 0.05 + Math.pow(contour.value / maxDensity, 0.45) * 0.16,
 			strokeWidth: 0.18 + (contour.value / maxDensity) * 0.32
 		}));
+	};
+
+	const contourCache = $derived.by(() => {
+		if (!showAnimation || !uniqueDays.length) {
+			return null;
+		}
+		const cache = [];
+		uniqueDays.forEach((group) => {
+			const startMs = group.start.getTime();
+			const endMs = group.end.getTime() + 86400000;
+			const startDay = Math.floor(startMs / 86400000);
+			const endDay = Math.floor(endMs / 86400000);
+			const indices = new Set();
+			for (let day = startDay; day <= endDay; day++) {
+				if (pointTimestampMap[day]) {
+					pointTimestampMap[day].forEach((i) => indices.add(i));
+				}
+			}
+			const filtered = pointMarkers.filter((_, i) => indices.has(i));
+			cache.push(computeContours(filtered));
+		});
+		return cache;
+	});
+
+	const heatContours = $derived.by(() => {
+		if (!contourCache) return computeContours(showAnimation ? filteredPointMarkers : pointMarkers);
+		return contourCache[currentDayIndex] || [];
 	});
 
 	const legendBands = $derived.by(() => {
@@ -108,6 +140,43 @@
 	});
 
 	const legendBandStartY = $derived(legendPaddingY + legendTitleLineHeight + legendTitleGap);
+
+	const pointTimestampMap = $derived.by(() => {
+		const map = {};
+		points.forEach((p, i) => {
+			if (p.timestamp) {
+				const timestamp = typeof p.timestamp === 'string' ? parseInt(p.timestamp, 10) : p.timestamp;
+				const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+				const day = Math.floor(ms / 86400000);
+				if (!map[day]) map[day] = [];
+				map[day].push(i);
+			}
+		});
+		return map;
+	});
+
+	const filteredPointMarkers = $derived.by(() => {
+		if (!showAnimation || uniqueDays.length === 0) {
+			return pointMarkers;
+		}
+
+		const currentGroup = uniqueDays[currentDayIndex];
+		if (!currentGroup) return pointMarkers;
+
+		const startMs = currentGroup.start.getTime();
+		const endMs = currentGroup.end.getTime() + 86400000;
+		const startDay = Math.floor(startMs / 86400000);
+		const endDay = Math.floor(endMs / 86400000);
+
+		const indices = new Set();
+		for (let day = startDay; day <= endDay; day++) {
+			if (pointTimestampMap[day]) {
+				pointTimestampMap[day].forEach((i) => indices.add(i));
+			}
+		}
+
+		return pointMarkers.filter((_, i) => indices.has(i));
+	});
 </script>
 
 {#each heatContours as contour (contour.id)}
