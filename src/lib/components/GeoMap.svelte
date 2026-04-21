@@ -18,12 +18,31 @@
 		padding = 24
 	} = $props();
 
+	let showHeatMap = $state(false);
+
 	const sphere = { type: 'Sphere' };
 	const graticule = geoGraticule10();
 
+	const pointFeatures = $derived(
+		points.map((point, index) => ({
+			type: 'Feature',
+			id: point.id ?? `point-feature-${index}`,
+			properties: {
+				name: point.name ?? point.location ?? `Point ${index + 1}`
+			},
+			geometry: {
+				type: 'Point',
+				coordinates: [point.longitude, point.latitude]
+			}
+		}))
+	);
+
 	const projection = $derived.by(() => {
 		const currentProjection = geoNaturalEarth1();
-		const targetGeometry = features.length ? { type: 'FeatureCollection', features } : sphere;
+		const targetFeatures = [...features, ...pointFeatures];
+		const targetGeometry = targetFeatures.length
+			? { type: 'FeatureCollection', features: targetFeatures }
+			: sphere;
 
 		currentProjection.fitExtent(
 			[
@@ -69,7 +88,8 @@
 				return {
 					id: point.id ?? `point-${index}`,
 					x: projected[0],
-					y: projected[1]
+					y: projected[1],
+					label: point.name ?? point.location ?? `Point ${index + 1}`
 				};
 			})
 			.filter(Boolean)
@@ -99,8 +119,8 @@
 			id: `density-${index}`,
 			d: contourPath(contour),
 			fill: heatColor(contour.value),
-			opacity: Math.max(0.2, 0.14 + Math.pow(contour.value / maxDensity, 0.55) * 0.68),
-			strokeOpacity: 0.08 + Math.pow(contour.value / maxDensity, 0.45) * 0.24,
+			opacity: Math.max(0.12, 0.08 + Math.pow(contour.value / maxDensity, 0.55) * 0.42),
+			strokeOpacity: 0.05 + Math.pow(contour.value / maxDensity, 0.45) * 0.16,
 			strokeWidth: 0.18 + (contour.value / maxDensity) * 0.32
 		}));
 	});
@@ -196,143 +216,225 @@
 	};
 </script>
 
-<svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
-	<path d={path(sphere)} fill="currentColor" fill-opacity="0.06" />
-	<path
-		d={path(graticule)}
-		fill="none"
-		stroke="currentColor"
-		stroke-opacity="0.18"
-		stroke-width="0.7"
-	/>
-	{#each featurePaths as feature (feature.id)}
+<div class="map-wrap">
+	<button
+		class="heat-toggle"
+		type="button"
+		role="switch"
+		aria-checked={showHeatMap}
+		aria-label="Toggle heat map"
+		onclick={() => (showHeatMap = !showHeatMap)}
+	>
+		<span class="heat-toggle__label">Heat map</span>
+		<span class="heat-toggle__track" aria-hidden="true">
+			<span class="heat-toggle__thumb"></span>
+		</span>
+	</button>
+
+	<svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Map visualization">
+		<path d={path(sphere)} fill="currentColor" fill-opacity="0.06" />
 		<path
-			d={feature.d}
-			fill="currentColor"
-			fill-opacity="0.24"
-			stroke="currentColor"
-			stroke-opacity="0.45"
-			stroke-width="0.9"
-		>
-			<title>{feature.name}</title>
-		</path>
-	{/each}
-	{#each boundaryPaths as boundary (boundary.id)}
-		<path
-			d={boundary.d}
+			d={path(graticule)}
 			fill="none"
 			stroke="currentColor"
-			stroke-opacity="0.65"
-			stroke-width="0.55"
-		>
-			<title>{boundary.name}</title>
-		</path>
-	{/each}
-	{#each heatContours as contour (contour.id)}
-		<path
-			d={contour.d}
-			fill={contour.fill}
-			fill-opacity={contour.opacity}
-			stroke={contour.fill}
-			stroke-opacity={contour.strokeOpacity}
-			stroke-width={contour.strokeWidth}
+			stroke-opacity="0.18"
+			stroke-width="0.7"
 		/>
-	{/each}
-	{#if legendBands.length}
-		<g
-			transform={`translate(${padding}, ${height - padding - (38 + legendBands.length * (legendItemHeight + legendItemGap))})`}
-		>
-			<rect
-				width="158"
-				height={38 + legendBands.length * (legendItemHeight + legendItemGap)}
-				rx="8"
-				fill="white"
-				fill-opacity="0.86"
+		{#each featurePaths as feature (feature.id)}
+			<path
+				d={feature.d}
+				fill="currentColor"
+				fill-opacity="0.24"
 				stroke="currentColor"
 				stroke-opacity="0.45"
-				stroke-width="0.7"
-			/>
-			<text x="10" y="16" fill="currentColor" font-size="11" font-weight="600">Density bands</text>
-			{#each legendBands as band, index (band.id)}
-				<g transform={`translate(10, ${24 + index * (legendItemHeight + legendItemGap)})`}>
-					<rect
-						width="20"
-						height={legendItemHeight}
-						fill={band.color}
-						stroke="currentColor"
-						stroke-opacity="0.2"
-						stroke-width="0.5"
-					/>
-					<text x="28" y="10.5" fill="currentColor" font-size="10" dominant-baseline="middle">
-						{formatDensity(band.from)} - {formatDensity(band.to)}
-					</text>
-				</g>
-			{/each}
-		</g>
-	{/if}
-	{#if scaleBar}
-		<g transform={`translate(${scaleBar.x}, ${scaleBar.y})`}>
-			<rect
-				width={scaleBar.width / 2}
-				height={scaleBar.height}
-				fill="currentColor"
-				fill-opacity="0.88"
-			/>
-			<rect
-				x={scaleBar.width / 2}
-				width={scaleBar.width / 2}
-				height={scaleBar.height}
-				fill="white"
-				stroke="currentColor"
-				stroke-opacity="0.7"
-				stroke-width="0.8"
-			/>
-			<line x1="0" y1="0" x2="0" y2="12" stroke="currentColor" stroke-width="0.9" />
-			<line
-				x1={scaleBar.width / 2}
-				y1="0"
-				x2={scaleBar.width / 2}
-				y2="12"
-				stroke="currentColor"
 				stroke-width="0.9"
-			/>
-			<line
-				x1={scaleBar.width}
-				y1="0"
-				x2={scaleBar.width}
-				y2="12"
-				stroke="currentColor"
-				stroke-width="0.9"
-			/>
-			<text x="0" y="21" fill="currentColor" font-size="10">0</text>
-			<text x={scaleBar.width / 2} y="21" fill="currentColor" font-size="10" text-anchor="middle">
-				{formatDistance(scaleBar.distanceKm / 2)}
-			</text>
-			<text x={scaleBar.width} y="21" fill="currentColor" font-size="10" text-anchor="end">
-				{formatDistance(scaleBar.distanceKm)}
-			</text>
-		</g>
-	{/if}
-	{#if northArrow}
-		<g transform={`translate(${northArrow.x}, ${northArrow.y})`}>
-			<line
-				x1="0"
-				y1={northArrow.size * 0.32}
-				x2="0"
-				y2={-northArrow.size * 0.18}
-				stroke="currentColor"
-				stroke-width="1.2"
-			/>
+			>
+				<title>{feature.name}</title>
+			</path>
+		{/each}
+		{#each boundaryPaths as boundary (boundary.id)}
 			<path
-				d={`M 0 ${-northArrow.size * 0.54} L ${northArrow.size * 0.16} ${-northArrow.size * 0.16} L 0 ${-northArrow.size * 0.25} L ${-northArrow.size * 0.16} ${-northArrow.size * 0.16} Z`}
-				fill="currentColor"
-				fill-opacity="0.92"
-			/>
-		</g>
-	{/if}
-</svg>
+				d={boundary.d}
+				fill="none"
+				stroke="currentColor"
+				stroke-opacity="0.65"
+				stroke-width="0.55"
+			>
+				<title>{boundary.name}</title>
+			</path>
+		{/each}
+		{#each pointMarkers as point (point.id)}
+			<circle cx={point.x} cy={point.y} r="1.4" fill="currentColor" fill-opacity="0.9">
+				<title>{point.label}</title>
+			</circle>
+		{/each}
+		{#if showHeatMap}
+			{#each heatContours as contour (contour.id)}
+				<path
+					d={contour.d}
+					fill={contour.fill}
+					fill-opacity={contour.opacity}
+					stroke={contour.fill}
+					stroke-opacity={contour.strokeOpacity}
+					stroke-width={contour.strokeWidth}
+				/>
+			{/each}
+		{/if}
+		{#if showHeatMap && legendBands.length}
+			<g
+				transform={`translate(${padding}, ${height - padding - (38 + legendBands.length * (legendItemHeight + legendItemGap))})`}
+			>
+				<rect
+					width="158"
+					height={38 + legendBands.length * (legendItemHeight + legendItemGap)}
+					rx="8"
+					fill="white"
+					fill-opacity="0.86"
+					stroke="currentColor"
+					stroke-opacity="0.45"
+					stroke-width="0.7"
+				/>
+				<text x="10" y="16" fill="currentColor" font-size="11" font-weight="600">Density bands</text
+				>
+				{#each legendBands as band, index (band.id)}
+					<g transform={`translate(10, ${24 + index * (legendItemHeight + legendItemGap)})`}>
+						<rect
+							width="20"
+							height={legendItemHeight}
+							fill={band.color}
+							stroke="currentColor"
+							stroke-opacity="0.2"
+							stroke-width="0.5"
+						/>
+						<text x="28" y="10.5" fill="currentColor" font-size="10" dominant-baseline="middle">
+							{formatDensity(band.from)} - {formatDensity(band.to)}
+						</text>
+					</g>
+				{/each}
+			</g>
+		{/if}
+		{#if scaleBar}
+			<g transform={`translate(${scaleBar.x}, ${scaleBar.y})`}>
+				<rect
+					width={scaleBar.width / 2}
+					height={scaleBar.height}
+					fill="currentColor"
+					fill-opacity="0.88"
+				/>
+				<rect
+					x={scaleBar.width / 2}
+					width={scaleBar.width / 2}
+					height={scaleBar.height}
+					fill="white"
+					stroke="currentColor"
+					stroke-opacity="0.7"
+					stroke-width="0.8"
+				/>
+				<line x1="0" y1="0" x2="0" y2="12" stroke="currentColor" stroke-width="0.9" />
+				<line
+					x1={scaleBar.width / 2}
+					y1="0"
+					x2={scaleBar.width / 2}
+					y2="12"
+					stroke="currentColor"
+					stroke-width="0.9"
+				/>
+				<line
+					x1={scaleBar.width}
+					y1="0"
+					x2={scaleBar.width}
+					y2="12"
+					stroke="currentColor"
+					stroke-width="0.9"
+				/>
+				<text x="0" y="21" fill="currentColor" font-size="10">0</text>
+				<text x={scaleBar.width / 2} y="21" fill="currentColor" font-size="10" text-anchor="middle">
+					{formatDistance(scaleBar.distanceKm / 2)}
+				</text>
+				<text x={scaleBar.width} y="21" fill="currentColor" font-size="10" text-anchor="end">
+					{formatDistance(scaleBar.distanceKm)}
+				</text>
+			</g>
+		{/if}
+		{#if northArrow}
+			<g transform={`translate(${northArrow.x}, ${northArrow.y})`}>
+				<line
+					x1="0"
+					y1={northArrow.size * 0.32}
+					x2="0"
+					y2={-northArrow.size * 0.18}
+					stroke="currentColor"
+					stroke-width="1.2"
+				/>
+				<path
+					d={`M 0 ${-northArrow.size * 0.54} L ${northArrow.size * 0.16} ${-northArrow.size * 0.16} L 0 ${-northArrow.size * 0.25} L ${-northArrow.size * 0.16} ${-northArrow.size * 0.16} Z`}
+					fill="currentColor"
+					fill-opacity="0.92"
+				/>
+			</g>
+		{/if}
+	</svg>
+</div>
 
 <style>
+	.map-wrap {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.heat-toggle {
+		width: fit-content;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		font-size: 0.95rem;
+		cursor: pointer;
+	}
+
+	.heat-toggle__label {
+		font-size: 0.95rem;
+	}
+
+	.heat-toggle__track {
+		position: relative;
+		width: 2.75rem;
+		height: 1.55rem;
+		border: 1px solid currentColor;
+		border-radius: 999px;
+		background: color-mix(in srgb, currentColor 10%, transparent);
+		transition: background-color 120ms ease;
+	}
+
+	.heat-toggle__thumb {
+		position: absolute;
+		top: 50%;
+		left: 0.18rem;
+		width: 1rem;
+		height: 1rem;
+		border-radius: 50%;
+		background: currentColor;
+		transform: translateY(-50%);
+		transition: transform 120ms ease;
+	}
+
+	.heat-toggle[aria-checked='true'] .heat-toggle__track {
+		background: color-mix(in srgb, currentColor 22%, transparent);
+	}
+
+	.heat-toggle[aria-checked='true'] .heat-toggle__thumb {
+		transform: translate(1.17rem, -50%);
+	}
+
+	.heat-toggle:focus-visible .heat-toggle__track {
+		outline: 2px solid currentColor;
+		outline-offset: 2px;
+	}
+
 	svg {
 		width: 100%;
 		height: auto;
